@@ -1,15 +1,6 @@
-# legacygl.js #
-
-**legacygl.js** is a small library based on WebGL for enabling the good-old-days legacy 
-OpenGL style coding using the deprecated APIs (e.g., glBegin, glPushMatrix, GL_QUADS, glNewList).
-
-### Hello World 3D ###
-
-```
-#!html
 <html>
 <head>
-<title>legacygl.js Demo: Hello World 3D</title>
+<title>legacygl.js Demo: Display List</title>
 <script src="../gl-matrix.js"></script>
 <script src="../gl-matrix-util.js"></script>
 <script src="../legacygl.js"></script>
@@ -22,6 +13,21 @@ var canvas;
 var legacygl;
 var drawutil;
 var camera;
+var displist;
+var mesh;
+
+function add_triangles() {
+    var n = 2 * (mesh.faces.length / 3 + 10);
+    for (var i = 0; i < n; ++i) {
+        var offset = vec3.random([], 20);
+        for (var j = 0; j < 3; ++j) {
+            var v = vec3.add_ip(vec3.random([], 1), offset);
+            for (var k = 0; k < 3; ++k)
+                mesh.vertices.push(v[k]);
+            mesh.faces.push(mesh.faces.length);
+        }
+    }
+};
 
 function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -33,13 +39,16 @@ function draw() {
     drawutil.zxgrid(50);
     // draw quad
     mat4.rotateY_ip(legacygl.uniforms.modelview.value, 1.1);
-    legacygl.color(0, 0.7, 1);
-    legacygl.begin(legacygl.QUADS);
-    legacygl.vertex(1, 0, 0);
-    legacygl.vertex(0.5, 1, 0);
-    legacygl.vertex(0, 1, 0.5);
-    legacygl.vertex(0, 0, 1);
-    legacygl.end();
+    var drawfunc = function() {
+        legacygl.color(0, 0.7, 1);
+        drawutil.trimesh("fill", mesh.vertices, mesh.faces);
+        legacygl.color(0, 0, 0);
+        drawutil.trimesh("line", mesh.vertices, mesh.faces);
+    };
+    if (document.getElementById("input_use_displist").checked)
+        displist.draw(drawfunc);
+    else
+        drawfunc();
 };
 function init() {
     // OpenGL context
@@ -69,9 +78,12 @@ function init() {
     legacygl.add_uniform("modelview", "Matrix4f");
     legacygl.add_uniform("projection", "Matrix4f");
     legacygl.add_vertex_attribute("color", 3);
+    displist = legacygl.displist_wrapper("displist");
     drawutil = get_drawutil(gl, legacygl);
     camera = get_camera(canvas.width);
     camera.eye = [40, 20, 30];
+    mesh = { vertices: [], faces: [] };
+    add_triangles();
     // event handlers
     canvas.onmousedown = function(evt) {
         camera.start_moving(this.get_mousepos(evt), evt.shiftKey ? "zoom" : evt.ctrlKey ? "pan" : "rotate");
@@ -86,6 +98,17 @@ function init() {
         if (camera.is_moving())
             camera.finish_moving();
     };
+    document.getElementById("input_use_displist").onchange = function(evt) {
+        draw();
+    };
+    document.getElementById("button_invalidate_displist").onclick = function(evt) {
+        displist.invalidate();
+        draw();
+    };
+    document.getElementById("button_add_objects").onclick = function(evt) {
+        add_triangles();
+        draw();
+    };
     // init OpenGL settings
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(gl.DEPTH_TEST);
@@ -94,8 +117,11 @@ function init() {
 </script>
 </head>
 <body onload="init(); draw();">
-    <h2>legacygl.js Demo: Hello World 3D</h2>
+    <h2>legacygl.js Demo: Display List</h2>
     <canvas id="canvas" width="640" height="480" style="border:1px solid #000000;"></canvas>
+    <div>Use Display List: <input id="input_use_displist" type="checkbox" checked></div>
+    <div><button id="button_invalidate_displist">Invalidate Display List</button></div>
+    <div><button id="button_add_objects">Add Triangles</button></div>
     <h3>Camera Control:</h3>
     <ul>
         <li>Drag: Rotate</li>
@@ -104,22 +130,3 @@ function init() {
     </ul>
 </body>
 </html>
-```
-http://htmlpreview.github.io/?https://bitbucket.org/kenshi84/legacygl.js/raw/6f180a007849e7d3412f68d9d351e7cee96507ce/demo/hello3d.html
-
-### Demos ###
-- Hello World 2D
-    - http://htmlpreview.github.io/?https://bitbucket.org/kenshi84/legacygl.js/raw/6f180a007849e7d3412f68d9d351e7cee96507ce/demo/hello2d.html
-- Pick/Move Objects in 3D
-    - http://htmlpreview.github.io/?https://bitbucket.org/kenshi84/legacygl.js/raw/6f180a007849e7d3412f68d9d351e7cee96507ce/demo/pick3d.html
-- Pick/Move Objects in 2D
-    - http://htmlpreview.github.io/?https://bitbucket.org/kenshi84/legacygl.js/raw/6f180a007849e7d3412f68d9d351e7cee96507ce/demo/pick2d.html
-- Z-Buffer
-    - http://htmlpreview.github.io/?https://bitbucket.org/kenshi84/legacygl.js/raw/6f180a007849e7d3412f68d9d351e7cee96507ce/demo/z-buffer.html
-- Display List
-    - http://htmlpreview.github.io/?https://bitbucket.org/kenshi84/legacygl.js/raw/6f180a007849e7d3412f68d9d351e7cee96507ce/demo/displist.html
-- Mesh Viewer
-    - http://htmlpreview.github.io/?https://bitbucket.org/kenshi84/legacygl.js/raw/1ecf5864563c0eedba6fddf46af0afbc2e0cfc4c/demo/meshviewer.html
-
-### Tutorial ###
-- [Managing Shader Variables](https://bitbucket.org/kenshi84/legacygl.js/src/6f180a007849e7d3412f68d9d351e7cee96507ce/doc/tutorial-managing-shader-variables.md)
