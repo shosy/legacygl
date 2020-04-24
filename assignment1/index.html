@@ -118,6 +118,7 @@ function set_mouse_position(out, mouse_win) {
     var eye_to_intersection = vec3.scale([], eye_to_mouse, s2 / s1);
     return vec3.add(out, camera.eye, eye_to_intersection);
 }
+
 function pick_nearest_object_index(mouse_win) {
     var viewport = [0, 0, canvas.width, canvas.height];
     var dist_min = 10000000;
@@ -135,6 +136,7 @@ function pick_nearest_object_index(mouse_win) {
     }
     return ret;
 }
+
 function init() {
     // OpenGL context
     canvas = document.getElementById("canvas");
@@ -179,7 +181,6 @@ function init() {
         var mouse_win = this.get_mousepos(evt);
         if (evt.metaKey) {
             if (!evt.shiftKey) {
-                // add a control point
                 var new_p = set_mouse_position([], mouse_win);
                 var index = pick_nearest_object_index(mouse_win);
                 var dist0 = (index == 0) ? 10000000 : vec2.dist(new_p, points[index - 1]);
