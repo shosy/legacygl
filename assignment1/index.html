@@ -181,6 +181,7 @@ function init() {
         var mouse_win = this.get_mousepos(evt);
         if (evt.metaKey) {
             if (!evt.shiftKey) {
+                // add a control point
                 var new_p = set_mouse_position([], mouse_win);
                 var index = pick_nearest_object_index(mouse_win);
                 var dist0 = (index == 0) ? 10000000 : vec2.dist(new_p, points[index - 1]);
