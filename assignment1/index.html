@@ -183,11 +183,38 @@ function init() {
             if (!evt.shiftKey) {
                 // add a control point
                 var new_p = set_mouse_position([], mouse_win);
-                var index = pick_nearest_object_index(mouse_win);
-                var dist0 = (index == 0) ? 10000000 : vec2.dist(new_p, points[index - 1]);
-                var dist1 = (index == points.length - 1) ? 10000000 : vec2.dist(new_p, points[index + 1]);
-                if (dist0 <= dist1) {
-                    points.splice(index, 0, new_p);
+                var dist2_min = 10000000;
+                var index = 0;
+                d2 = function (p0, p1, p2) {    // 点p0と線分p1p2との距離
+                    // https://qiita.com/boiledorange73/items/bcd4e150e7caa0210ee6
+                    x0 = p0[0];
+                    y0 = p0[1];
+                    x1 = p1[0];
+                    y1 = p1[1];
+                    x2 = p2[0];
+                    y2 = p2[1];
+                    a = x2 - x1;
+                    b = y2 - y1;
+                    t = - (a * (x1 - x0) + b * (y1 - y0));
+                    if (t <= 0) {
+                        return (x1 - x0) ** 2 + (y1 - y0) ** 2; 
+                    } else if (t >= a ** 2 + b ** 2) {
+                        return (x2 - x0) ** 2 + (y2 - y0) ** 2;
+                    } else {
+                        return (a * (y1 - y0) - b * (x1 - x0)) ** 2 / (a ** 2 + b ** 2);
+                    }
+                };
+                for (var i = 0; i < points.length - 1; ++i) {
+                    var dist2 = d2(new_p, points[i], points[i + 1]);
+                    if (dist2 < dist2_min) {
+                        dist2_min = dist2;
+                        index = i;
+                    }
+                }
+                if (vec2.dist(new_p, points[0]) <= Math.sqrt(dist2_min)) {
+                    points.splice(0, 0, new_p);
+                } else if (vec2.dist(new_p, points[points.length - 1]) <= Math.sqrt(dist2_min)) {
+                    points.push(new_p);
                 } else {
                     points.splice(index + 1, 0, new_p);
                 }
