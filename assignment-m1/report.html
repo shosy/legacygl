@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title id="title">内容説明・考察</title>
+  </head>
+  <body>
+    <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
+    <h3>全体として</h3>
+    <p>
+      制御点をマウスでインタラクティブに追加・削除できる。
+      2Dの場合、MetaKey(MacのCommandキー)+Clickでクリックした所に最も近い線分の間に制御点を追加し
+      (ただし端の制御点が近いときはそれに新たな制御点を隣接させる)、
+      MetaKey+ShiftKey+Clickで最も近傍にある制御点を削除することが可能である。
+      3Dの場合、制御点の個数をボタンで制御できる。
+      またいずれの場合も、制御点をDragにより移動させる機能や、制御点が０個にならないように警告する機能も実装している。
+    </p>
+    <h3><a href="bezier.html">ベジェ曲線</a></h3>
+    <p>
+      一般のn次ベジェ曲線を、「多項式をそのまま評価」もしくは「de Casteljauのアルゴリズム」により描画できる。
+      「多項式をそのまま評価」を選択した場合、各制御点の重みを変更することで円弧などの有理ベジェ曲線も表せる。
+      「de Casteljauのアルゴリズム」を選択した場合、計算途中で得られた分割点を新たな制御点とする
+      (今回のデモではこれらの点も表示される)ことで、ベジェ曲線を分割することができる。
+    </p>
+    <h3><a href="catmullrom.html">3次Catmull-Romスプライン曲線</a></h3>
+    <p>
+      3次Catmull-Romスプライン曲線は一般に4点の情報から求めるが、
+      両端等で4点に満たない状況から曲線を得なければならないときは低次で妥協することにする。
+      ノット列の与え方はuniform, chordal, centripetalのいずれかから選択できる。
+      uniformの場合ねじれ等により不自然な曲線が描画されることが多かったが、
+      chordalやcentripetalに変更するとより自然な曲線が得られた。
+    </p>
+    <h3><a href="bspline.html">Bスプライン曲線</a></h3>
+    <p>
+      ノット列として開一様ノットベクトルを用い、制御点の両端を通るn次Bスプライン曲線を描画する。
+      次数nとして不適切な入力(負の値もしくは制御点の個数以上の値)は拒否するように設定してある。
+      また次数nを上げるほど、描画される曲線が制御点に引っ張られることはなくなり直線的になった。
+    </p>
+    <h3><a href="bezier3d.html">ベジェ曲面</a></h3>
+    <p>
+      4点からなる面メッシュを多数組み合わせることで、n次ベジェ曲面を描画する。
+      このとき制御点は(n+1)の2乗個必要である。
+      ベジェ曲線のバーンスタイン基底関数を流用することで簡単に実装できた。
+    </p>
+    <h3><a href="coons.html">Coons曲面</a></h3>
+    <p>
+      線形補間を取ることにより、端点が一致する４本のベジェ曲線に囲まれたCoons曲面を描画する。
+      制御点の初期配置はランダムである。
+    </p>
+
+    <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
+    <script src="https://button.glitch.me/button.js"></script>
+  </body>
+</html>

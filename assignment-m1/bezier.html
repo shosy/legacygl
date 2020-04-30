@@ -55,6 +55,25 @@ function eval_bezier_deCasteljau(points, t) {
     return vec2.scaleAndAdd_ip(vec2.scale([], pl, 1 - t), pr, t);
 }
 
+function divide_bezier(points, t) {
+    var n = points.length;
+    var ps = new Array(n);
+    ps[0] = points;
+    for (var i = 1; i < n; ++i) {
+        ps[i] = new Array(n - i);
+        for (var j = 0; j < n - i; ++j) {
+            ps[i][j] = vec2.scaleAndAdd_ip(vec2.scale([], ps[i - 1][j], 1 - t), ps[i - 1][j + 1], t);
+        }
+    }
+    var new_ctrl_points0 = [];
+    var new_ctrl_points1 = [];
+    for (var i = 0; i < n; ++i) {
+        new_ctrl_points0.push(ps[i][0]);
+        new_ctrl_points1.push(ps[i].slice(-1)[0]);
+    }
+    return [new_ctrl_points0, new_ctrl_points1];
+}
+
 function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     // projection & camera position
@@ -91,6 +110,37 @@ function draw() {
         }
         legacygl.end();
     }
+    // divide curve
+    if (document.getElementById("input_divide").checked && document.getElementById("input_deCasteljau").checked) {
+        var divide_parameter = Number(document.getElementById("input_divide_parameter").value);
+        var ctrl_points = divide_bezier(points, divide_parameter);
+        var ctrl_points0 = ctrl_points[0];
+        legacygl.color(0.2, 1, 0.2);
+        legacygl.begin(gl.LINE_STRIP);
+        for (var i = 0; i <= numsteps; ++i) {
+            var t = i / numsteps;
+            legacygl.vertex2(eval_bezier_deCasteljau(ctrl_points0, t));
+        }
+        legacygl.end();
+        legacygl.begin(gl.POINTS);
+        for (var i = 0; i < ctrl_points0.length; ++i) {
+            legacygl.vertex2(ctrl_points0[i]);
+        }
+        legacygl.end();
+        var ctrl_points1 = ctrl_points[1];
+        legacygl.color(1, 0.2, 1);
+        legacygl.begin(gl.LINE_STRIP);
+        for (var i = 0; i <= numsteps; ++i) {
+            var t = i / numsteps;
+            legacygl.vertex2(eval_bezier_deCasteljau(ctrl_points1, t));
+        }
+        legacygl.end();
+        legacygl.begin(gl.POINTS);
+        for (var i = 0; i < ctrl_points1.length; ++i) {
+            legacygl.vertex2(ctrl_points1[i]);
+        }
+        legacygl.end();
+    }
     // draw control points
     if (document.getElementById("input_show_controlpoints").checked) {
         legacygl.color(0.2, 0.5, 1);
@@ -105,11 +155,23 @@ function draw() {
         }
         legacygl.end();
     }
-    // 各制御点の重みを入力するか否か
+    // 入力様式を変更
+    var polist = document.getElementsByClassName("class_polynomial");
+    var delist = document.getElementsByClassName("class_deCasteljau");
     if (document.getElementById("input_polynomial").checked) {
-        document.getElementById("input_weights").style.display = "table-row";
+        for (var i = 0; i < polist.length; ++i) {
+            polist[i].style.display = "table-row";
+        }
+        for (var i = 0; i < delist.length; ++i) {
+            delist[i].style.display = "none";
+        }
     } else if (document.getElementById("input_deCasteljau").checked) {
-        document.getElementById("input_weights").style.display = "none";
+        for (var i = 0; i < polist.length; ++i) {
+            polist[i].style.display = "none";
+        }
+        for (var i = 0; i < delist.length; ++i) {
+            delist[i].style.display = "table-row";
+        }
     }
 };
 
@@ -155,7 +217,7 @@ function setup_input_weights() {
     var new_cell = row_weights.insertCell();
     for (var i = 0; i < points.length; ++i) {
         new_cell.innerHTML += "w" + String(i) +
-                              "&ensp;<input type=\"number\" id=\"input_weight" + String(i) + "\" onchange=\"draw();\" value=\"1\"><br>";
+                              "&ensp;<input type=\"number\" id=\"input_weight" + String(i) + "\" onchange=\"draw();\" step=\"0.1\" value=\"1\"><br>";
     }    
 }
   
@@ -302,13 +364,21 @@ function init() {
         <input type="radio" name="input_alogorithm" id="input_deCasteljau" onchange="draw();">de Casteljauのアルゴリズム
       </td>
     </tr>
-    <tr id="input_weights">
+    <tr id="input_weights" class="class_polynomial">
       <td>各制御点の重み:</td>
       <td>
-        w0&ensp;<input type="number" id="input_weight0" onchange="draw();" value="1"><br>
-        w1&ensp;<input type="number" id="input_weight1" onchange="draw();" value="1"><br>
-        w2&ensp;<input type="number" id="input_weight2" onchange="draw();" value="1"><br>
+        w0&ensp;<input type="number" id="input_weight0" onchange="draw();" step="0.1" value="1"><br>
+        w1&ensp;<input type="number" id="input_weight1" onchange="draw();" step="0.1" value="1"><br>
+        w2&ensp;<input type="number" id="input_weight2" onchange="draw();" step="0.1" value="1"><br>
       </td>
+    </tr>
+    <tr class="class_deCasteljau">
+      <td>分割:</td>
+      <td><input type="checkbox" id="input_divide" onchange="draw();"></td>
+    </tr>
+    <tr class="class_deCasteljau">
+      <td>分割パラメタ(0〜1):</td>
+      <td><input type="number" id="input_divide_parameter" onchange="draw();" step="0.1" min="0" max="1" value="0.6"></td>
     </tr>
     <tr>
       <td>Number of Steps:</td>
