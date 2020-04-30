@@ -226,7 +226,7 @@ function init() {
             vec3.add(selected, camera.eye, eye_to_intersection);
             draw();
         }
-    }
+    };
     document.onmouseup = function (evt) {
         if (camera.is_moving()) {
             camera.finish_moving();
@@ -242,7 +242,7 @@ function init() {
     };
     document.getElementById("button_delete").onclick = function(evt) {
         if (len <= 2) {
-            alert("これ以上点を削除できません")
+            alert("これ以上点を削除できません");
             return;
         }
         --len;

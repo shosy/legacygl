@@ -17,11 +17,7 @@ var legacygl;
 var drawutil;
 var camera;
 var len;
-// var points;    // points[0]はc0上、points[1]はc1上、points[2]はd0上、points[3]はd1上の点のリストを表す
-var points_c0;
-var points_c1;
-var points_d0;
-var points_d1;
+var points;    // points[0]はc0上、points[1]はc1上、points[2]はd0上、points[3]はd1上の点のリストを表す
 var selected = null;
 
 function combination(n, r) {
@@ -42,16 +38,16 @@ function eval_bezier(points, t) {
 }
 
 function eval_coons(s, t) {
-    var curve_c0 = eval_bezier(points_c0, s);
-    var curve_c1 = eval_bezier(points_c1, s);
-    var curve_d0 = eval_bezier(points_d0, t);
-    var curve_d1 = eval_bezier(points_d1, t);
+    var curve_c0 = eval_bezier(points[0], s);
+    var curve_c1 = eval_bezier(points[1], s);
+    var curve_d0 = eval_bezier(points[2], t);
+    var curve_d1 = eval_bezier(points[3], t);
     var Lc = vec3.scaleAndAdd_ip(vec3.scale([], curve_c0, 1 - t), curve_c1, t);
     var Ld = vec3.scaleAndAdd_ip(vec3.scale([], curve_d0, 1 - s), curve_d1, s);
-    var B0 = vec3.scale([], points_c0[0], (1 - s) * (1 - t)) 
-    var B1 = vec3.scale([], points_c0.slice(-1)[0], s * (1 - t)) 
-    var B2 = vec3.scale([], points_c1[0], (1 - s) * t) 
-    var B3 = vec3.scale([], points_c1.slice(-1)[0], s * t)
+    var B0 = vec3.scale([], points[0][0], (1 - s) * (1 - t)) 
+    var B1 = vec3.scale([], points[0].slice(-1)[0], s * (1 - t)) 
+    var B2 = vec3.scale([], points[1][0], (1 - s) * t) 
+    var B3 = vec3.scale([], points[1].slice(-1)[0], s * t)
     var B = vec3.add_ip(vec3.add_ip(vec3.add([], B0, B1), B2), B3);
     return vec3.sub_ip(vec3.add([], Lc, Ld), B);
 }
@@ -114,22 +110,15 @@ function draw() {
     // draw control points
     if (document.getElementById("input_show_controlpoints").checked) {
         legacygl.color(0.2, 0.5, 1);
-        for (var i = 0; i < len; ++i) {
+        for (var i = 0; i < 4; ++i) {
             legacygl.begin(gl.LINE_STRIP);
             for (var j = 0; j < len; ++j) {
                 legacygl.vertex3(points[i][j]);
             }
             legacygl.end();
         }
-        for (var j = 0; j < len; ++j) {
-            legacygl.begin(gl.LINE_STRIP);
-            for (var i = 0; i < len; ++i) {
-                legacygl.vertex3(points[i][j]);
-            }
-            legacygl.end();
-        }
         legacygl.begin(gl.POINTS);
-        for (var i = 0; i < len; ++i) {
+        for (var i = 0; i < 4; ++i) {
             for (var j = 0; j < len; ++j) {
                 legacygl.vertex3(points[i][j]);
             }
@@ -139,20 +128,35 @@ function draw() {
 };
 
 function generate_init_points(n) {
-    // var f = function(x, z) {
-    //     return 4 - 0.3 * (x ** 2 + z ** 2) + 0.05 * x * Math.abs(z)** 1.5 + Math.random() * 3;
-    // };
-    // var points = [];
-    // for (var i = 0; i < n; ++i) {
-    //     var ps = [];
-    //     for (var j = 0; j < n; ++j) {
-    //         var x = -5 + 10 * i / n + Math.random();
-    //         var z = -5 + 10 * j / n + Math.random();
-    //         ps.push([x, f(x, z), z]);
-    //     }
-    //     points.push(ps);
-    // }
-    // return points;
+    var rand = function() {
+        return Math.random() * 10 - 4.5;
+    };
+    var points = [];
+    var points_c0 = [];
+    for (var i = 0; i < n; ++i) {
+        points_c0.push([10 * i / (n - 1) - 5, rand(), -5]);
+    }
+    points.push(points_c0);
+    var points_c1 = [];
+    for (var i = 0; i < n; ++i) {
+        points_c1.push([10 * i / (n - 1) - 5, rand(), 5]);
+    }
+    points.push(points_c1);
+    var points_d0 = [];
+    for (var i = 0; i < n; ++i) {
+        points_d0.push([-5, rand(), 10 * i / (n - 1) - 5]);
+    }
+    points.push(points_d0);
+    var points_d1 = [];
+    for (var i = 0; i < n; ++i) {
+        points_d1.push([5, rand(), 10 * i / (n - 1) - 5]);
+    }
+    points.push(points_d1);
+    points[0][0] = points[2][0];    // c0(0) = d0(0)
+    points[0][n - 1] = points[3][0];    // c0(1) = d1(0)
+    points[1][0] = points[2][n - 1];    // c1(0) = d0(1)
+    points[1][n - 1] = points[3][n - 1];    // c1(1) = d1(1)
+    return points;
 }
 
 function init() {
@@ -191,13 +195,7 @@ function init() {
     camera = get_camera(canvas.width);
     camera.eye = [15, 12, 20];
     len = 4;
-    
-    // points = generate_init_points(len);
-    points_c0 = [[-5, -5, -5], [-3, 2, -5], [2, 0, -5], [5, 3, -5]];
-    points_c1 = [[-5, 4, 5], [-2, 4, 5], [3, -4, 5], [5, -2, 5]];
-    points_d0 = [[-5, -5, -5], [-5, 2, -2], [-5, 0, 2], [-5, 4, 5]];
-    points_d1 = [[5, 3, -5], [5, 4, -2], [5, -4, 3], [5, -2, 5]];
-    
+    points = generate_init_points(len);
     // event handlers
     canvas.onmousedown = function(evt) {
         var mouse_win = this.get_mousepos(evt);
@@ -207,21 +205,21 @@ function init() {
             return;
         }
         // pick nearest object
-        // var viewport = [0, 0, canvas.width, canvas.height];
-        // var dist_min = 10000000;
-        // for (var i = 0; i < len; ++i) {
-        //     for (var j = 0; j < len; ++j) {
-        //         var object_win = glu.project(points[i][j], 
-        //                                      legacygl.uniforms.modelview.value,
-        //                                      legacygl.uniforms.projection.value,
-        //                                      viewport);
-        //         var dist = vec2.dist(mouse_win, object_win);
-        //         if (dist < dist_min) {
-        //             dist_min = dist;
-        //             selected = points[i][j];
-        //         }
-        //     }
-        // }
+        var viewport = [0, 0, canvas.width, canvas.height];
+        var dist_min = 10000000;
+        for (var i = 0; i < 4; ++i) {
+            for (var j = 0; j < len; ++j) {
+                var object_win = glu.project(points[i][j], 
+                                             legacygl.uniforms.modelview.value,
+                                             legacygl.uniforms.projection.value,
+                                             viewport);
+                var dist = vec2.dist(mouse_win, object_win);
+                if (dist < dist_min) {
+                    dist_min = dist;
+                    selected = points[i][j];
+                }
+            }
+        }
     };
     canvas.onmousemove = function(evt) {
         var mouse_win = this.get_mousepos(evt);
@@ -230,25 +228,25 @@ function init() {
             draw();
             return;
         }
-        // if (selected != null) {
-        //     var viewport = [0, 0, canvas.width, canvas.height];
-        //     mouse_win.push(1);
-        //     var mouse_obj = glu.unproject(mouse_win, 
-        //                                   legacygl.uniforms.modelview.value,
-        //                                   legacygl.uniforms.projection.value,
-        //                                   viewport);
-        //     // just reuse the same code as the 3D case
-        //     var plane_origin = [0, 0, 0];
-        //     var plane_normal = [0, 0, 1];
-        //     var eye_to_mouse = vec3.sub([], mouse_obj, camera.eye);
-        //     var eye_to_origin = vec3.sub([], plane_origin, camera.eye);
-        //     var s1 = vec3.dot(eye_to_mouse, plane_normal);
-        //     var s2 = vec3.dot(eye_to_origin, plane_normal);
-        //     var eye_to_intersection = vec3.scale([], eye_to_mouse, s2 / s1);
-        //     vec3.add(selected, camera.eye, eye_to_intersection);
-        //     draw();
-        // }
-    }
+        if (selected != null) {
+            var viewport = [0, 0, canvas.width, canvas.height];
+            mouse_win.push(1);
+            var mouse_obj = glu.unproject(mouse_win, 
+                                          legacygl.uniforms.modelview.value,
+                                          legacygl.uniforms.projection.value,
+                                          viewport);
+            // just reuse the same code as the 3D case
+            var plane_origin = [0, 0, 0];
+            var plane_normal = [0, 0, 1];
+            var eye_to_mouse = vec3.sub([], mouse_obj, camera.eye);
+            var eye_to_origin = vec3.sub([], plane_origin, camera.eye);
+            var s1 = vec3.dot(eye_to_mouse, plane_normal);
+            var s2 = vec3.dot(eye_to_origin, plane_normal);
+            var eye_to_intersection = vec3.scale([], eye_to_mouse, s2 / s1);
+            vec3.add(selected, camera.eye, eye_to_intersection);
+            draw();
+        }
+    };
     document.onmouseup = function (evt) {
         if (camera.is_moving()) {
             camera.finish_moving();
@@ -257,20 +255,20 @@ function init() {
         selected = null;
     };
     document.getElementById("button_add").onclick = function(evt) {
-        // ++len;
-        // points = generate_init_points(len);
-        // selected = null;
-        // draw();
+        ++len;
+        points = generate_init_points(len);
+        selected = null;
+        draw();
     };
     document.getElementById("button_delete").onclick = function(evt) {
-        // if (len <= 2) {
-        //     alert("これ以上点を削除できません")
-        //     return;
-        // }
-        // --len;
-        // points = generate_init_points(len);
-        // selected = null;
-        // draw();
+        if (len <= 2) {
+            alert("これ以上点を削除できません");
+            return;
+        }
+        --len;
+        points = generate_init_points(len);
+        selected = null;
+        draw();
     };
     // init OpenGL settings
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -309,4 +307,3 @@ function init() {
   </ul>
 </body>
 </html>
-、
