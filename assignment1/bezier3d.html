@@ -122,6 +122,23 @@ function draw() {
     }
 };
 
+function generate_init_points(n) {
+    var f = function(x, z) {
+        return 4 - 0.3 * (x ** 2 + z ** 2) + 0.05 * x * Math.abs(z)** 1.5 + Math.random() * 3;
+    };
+    var points = [];
+    for (var i = 0; i < n; ++i) {
+        var ps = [];
+        for (var j = 0; j < n; ++j) {
+            var x = -5 + 10 * i / n + Math.random();
+            var z = -5 + 10 * j / n + Math.random();
+            ps.push([x, f(x, z), z]);
+        }
+        points.push(ps);
+    }
+    return points;
+}
+
 function init() {
     // OpenGL context
     canvas = document.getElementById("canvas");
@@ -156,13 +173,9 @@ function init() {
     };
     drawutil = get_drawutil(gl, legacygl);
     camera = get_camera(canvas.width);
-    camera.eye = [10, 10, 15];
+    camera.eye = [15, 12, 20];
     len = 4;
-    points = [];
-    points.push([[-4, 2, -4], [-3, 0, -1], [-4, 4, 1], [-3, 1, 1]]);
-    points.push([[-1, 0, -2], [-2, 4, -1], [0, 1, 0], [-1, 0, 1]]);
-    points.push([[0, 2, -2], [2, 2, -1], [1, 0, 0], [0, -1, 1]]);
-    points.push([[1, 0, -2], [4, 2, -1], [3, 3, 1], [4, 2, 2]]);
+    points = generate_init_points(len);
     // event handlers
     canvas.onmousedown = function(evt) {
         var mouse_win = this.get_mousepos(evt);
@@ -221,14 +234,22 @@ function init() {
         }
         selected = null;
     };
-    // document.getElementById("button_add").onclick = function(evt) {
-    //     
-    //     draw();
-    // };
-    // document.getElementById("button_delete").onclick = function(evt) {
-    //     
-    //     draw();
-    // };
+    document.getElementById("button_add").onclick = function(evt) {
+        ++len;
+        points = generate_init_points(len);
+        selected = null;
+        draw();
+    };
+    document.getElementById("button_delete").onclick = function(evt) {
+        if (len <= 2) {
+            alert("これ以上点を削除できません")
+            return;
+        }
+        --len;
+        points = generate_init_points(len);
+        selected = null;
+        draw();
+    };
     // init OpenGL settings
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(gl.DEPTH_TEST);
@@ -255,8 +276,8 @@ function init() {
       <td colspan="2"><input type="checkbox" id="input_show_samplepoints" onchange="draw();" checked></td>
     </tr>
   </table>
-<!--   <div><button id="button_add">Add Control Points</button></div> -->
-<!--   <div><button id="button_delete">Delete Control Points</button></div> -->
+  <div><button id="button_add">Add Control Points</button></div>
+  <div><button id="button_delete">Delete Control Points</button></div>
   <h3>Usage:</h3>
   <ul>
     <li>Drag: Move Control Points</li>
