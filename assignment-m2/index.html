@@ -244,6 +244,7 @@ function init() {
         if (camera.is_moving())
             camera.finish_moving();
     };
+    // mesh
     function read_mesh(filename, content) {
         var mesh_temp = meshio.read(filename, content);
         var has_nontriangle = false;
