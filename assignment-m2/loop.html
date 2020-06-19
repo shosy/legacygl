@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title id="title">Doo-Sabin法</title>
+<title id="title">Loop法</title>
 <script src="https://cdn.rawgit.com/toji/gl-matrix/v3.3.0/dist/gl-matrix.js"></script>
 <script src="https://legacygl-js.glitch.me/gl-matrix-util.js"></script>
 <script src="https://legacygl-js.glitch.me/legacygl.js"></script>
@@ -66,16 +66,14 @@ function draw() {
     legacygl.uniforms.use_material.push();
     legacygl.uniforms.use_material.value = 1;
     displist_subdiv_faces.draw(function() {
-        // 多角形は三角形に分割して描画
+        // NOTE: this code assumes all faces are triangles!
+        // Quads can be drawn by using gl.QUADS which internally splits each quad into two triangles
         legacygl.begin(gl.TRIANGLES);
         mesh_subdiv.faces.forEach(function(f) {
             legacygl.normal3(f.normal);
-            var vs = f.vertices();
-            for (var i = 1; i < vs.length - 1; i++) {
-                legacygl.vertex3(vs[0].point);
-                legacygl.vertex3(vs[i].point);
-                legacygl.vertex3(vs[i + 1].point);
-            }
+            f.vertices().forEach(function(v){
+                legacygl.vertex3(v.point);
+            });
         });
         legacygl.end();
     });
@@ -95,56 +93,57 @@ function draw() {
         });
     }
 };
-function subdivide() {    // Doo-Sabin法を実装
-    // 新しいメッシュにおける頂点の座標を計算
-    mesh_subdiv.faces.forEach(function(f){
-        // 面fの重心
-        var centre = vec3.create();
-        f.vertices().forEach(function(v){
-            centre = vec3.add_ip(centre, v.point);
-        });
-        centre = vec3.scale_ip(centre, 1.0 / f.vertices().length);
-        // 面f上の各ハーフエッジの中点
-        f.halfedges().forEach(function(h){
-            h.midpoint = vec3.scale_ip(vec3.add([], h.from_vertex().point, h.vertex.point), 0.5);
-        });
-        // 面f上の各ハーフエッジhに対して、頂点h.from_vertex()から生成される新しい頂点の座標を計算し、これをhに紐付かせる
-        f.halfedges().forEach(function(h){
-            h.subdiv_point = vec3.scale_ip(vec3.add_ip(vec3.add_ip(vec3.add([], centre, h.prev.midpoint), h.midpoint), h.from_vertex().point), 0.25);
-        });
+function subdivide() {
+    // for each edge, compute subdivided point
+    mesh_subdiv.edges_forEach(function(e){
+        var v = e.vertices();
+        var w = [e.halfedge.next.vertex, e.halfedge.opposite.next.vertex];
+        if (e.is_boundary()) {
+            e.subdiv_point = vec3.scale([], vec3.add([], v[0].point, v[1].point), 0.5);
+        } else {
+            e.subdiv_point = vec3.add([],
+                vec3.scale([], vec3.add([], v[0].point, v[1].point), 3 / 8),
+                vec3.scale([], vec3.add([], w[0].point, w[1].point), 1 / 8))
+        }
     });
-    // 新しいメッシュの面を構成（h.idはhに紐付く新頂点のidであると解釈しよう）
+    // for each vertex, compute displaced point
+    mesh_subdiv.vertices.forEach(function(v){
+        if (v.is_boundary()) {
+            var w0 = v.halfedge.prev.from_vertex();
+            var w1 = v.halfedge.vertex;
+            v.subdiv_point = vec3.add([],
+                vec3.scale([], v.point, 3 / 4),
+                vec3.scale([], vec3.add([], w0.point, w1.point), 1 / 8));
+        } else {
+            var w = v.vertices();
+            var alpha = Math.pow(3 / 8 + 1 / 4 * Math.cos(2 * Math.PI / w.length), 2) + 3 / 8;
+            v.subdiv_point = vec3.scale([], v.point, alpha);
+            for (var i = 0; i < w.length; ++i)
+                v.subdiv_point = vec3.add([], v.subdiv_point, vec3.scale([], w[i].point, (1 - alpha) / w.length));
+        }
+    });
+    // make next subdiv mesh topology
     var mesh_subdiv_next = make_halfedge_mesh();
+    var offset = mesh_subdiv.num_vertices();
     mesh_subdiv.faces.forEach(function(f){
-        var fv_indices = [];
         f.halfedges().forEach(function(h){
-            fv_indices.push(h.id);
+            var fv_indices = [h.from_vertex().id];
+            fv_indices.push(offset + h.edge.id);
+            fv_indices.push(offset + h.prev.edge.id);
+            mesh_subdiv_next.add_face(fv_indices);
+        });
+        var fv_indices = [];
+        f.edges().forEach(function(e){
+            fv_indices.push(offset + e.id);
         });
         mesh_subdiv_next.add_face(fv_indices);
     });
-    mesh_subdiv.edges_forEach(function(e){
-        if (!e.is_boundary()) {
-            var fv_indices = [];
-            var h = e.halfedge;
-            fv_indices.push(h.id);
-            fv_indices.push(h.next.id);
-            fv_indices.push(h.opposite.id);
-            fv_indices.push(h.opposite.next.id);
-            mesh_subdiv_next.add_face(fv_indices.reverse());
-        }
-    });
+    // set geometry for the next subdiv mesh
     mesh_subdiv.vertices.forEach(function(v){
-        if (!v.is_boundary()) {
-            var fv_indices = [];
-            v.outgoing_halfedges().forEach(function(h){
-                fv_indices.push(h.id);
-            });
-            mesh_subdiv_next.add_face(fv_indices.reverse());
-        }
+        mesh_subdiv_next.vertices[v.id].point = v.subdiv_point;
     });
-    // 新しいメッシュに関するその他の設定
-    mesh_subdiv.halfedges_forEach(function(h){
-        mesh_subdiv_next.vertices[h.id].point = h.subdiv_point;
+    mesh_subdiv.edges_forEach(function(e){
+        mesh_subdiv_next.vertices[offset + e.id].point = e.subdiv_point;
     });
     mesh_subdiv = mesh_subdiv_next;
     mesh_subdiv.init_ids();
@@ -245,9 +244,20 @@ function init() {
         if (camera.is_moving())
             camera.finish_moving();
     };
-    // mesh
     function read_mesh(filename, content) {
-        mesh_control = mesh_subdiv = meshio.read(filename, content);
+        var mesh_temp = meshio.read(filename, content);
+        var has_nontriangle = false;
+        for (var i = 0; i < mesh_temp.faces.length; ++i) {
+            if (mesh_temp.faces[i].halfedges().length != 3) {
+                has_nontriangle = true;
+                break;
+            }
+        }
+        if (has_nontriangle) {
+            alert("Non-triangle polygon found! Please triangulate the mesh first.");
+            return;
+        }
+        mesh_control = mesh_subdiv = mesh_temp;
         mesh_subdiv.compute_normals();
         bbox = make_boundingbox();
         mesh_control.vertices.forEach(function(v) {

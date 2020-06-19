@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title id="title">[utokyo-iscg-2020] Advanced Assignment M2 (Subdivision)</title>
+<title id="title">Catmull-Clark法</title>
 <script src="https://cdn.rawgit.com/toji/gl-matrix/v3.3.0/dist/gl-matrix.js"></script>
 <script src="https://legacygl-js.glitch.me/gl-matrix-util.js"></script>
 <script src="https://legacygl-js.glitch.me/legacygl.js"></script>
@@ -66,14 +66,16 @@ function draw() {
     legacygl.uniforms.use_material.push();
     legacygl.uniforms.use_material.value = 1;
     displist_subdiv_faces.draw(function() {
-        // NOTE: this code assumes all faces are triangles!
-        // Quads can be drawn by using gl.QUADS which internally splits each quad into two triangles
+        // 多角形は三角形に分割して描画
         legacygl.begin(gl.TRIANGLES);
         mesh_subdiv.faces.forEach(function(f) {
             legacygl.normal3(f.normal);
-            f.vertices().forEach(function(v){
-                legacygl.vertex3(v.point);
-            });
+            var vs = f.vertices();
+            for (var i = 1; i < vs.length - 1; i++) {
+                legacygl.vertex3(vs[0].point);
+                legacygl.vertex3(vs[i].point);
+                legacygl.vertex3(vs[i + 1].point);
+            }
         });
         legacygl.end();
     });
@@ -93,76 +95,70 @@ function draw() {
         });
     }
 };
-function subdivide() {
-
+function subdivide() {    // Catmull-Clark法を実装
+    // 新しいメッシュにおける頂点の座標を計算
+    // for each face, compute subdivided point
     mesh_subdiv.faces.forEach(function(f){
-      
-  f.foovar = 0.0;
-  console.log('f', f.foovar, f.id, f, f.vertices(), f.halfedges());
-        f.halfedges().forEach(function(h){
-  console.log('aaaaa');
-        });
+        f.subdiv_point = f.centroid();
     });
-  
-  mesh_subdiv.vertices.forEach(function(v){
-  console.log('v', v.id);
-        });
-  
     // for each edge, compute subdivided point
     mesh_subdiv.edges_forEach(function(e){
-        var v = e.vertices();
-        var w = [e.halfedge.next.vertex, e.halfedge.opposite.next.vertex];
-console.log('e', e);
-
-console.log('w', w);
-        if (e.is_boundary()) {
-            e.subdiv_point = vec3.scale([], vec3.add([], v[0].point, v[1].point), 0.5);
-console.log('boundaaaaaary');
-        } else {
-            e.subdiv_point = vec3.add([],
-                vec3.scale([], vec3.add([], v[0].point, v[1].point), 3 / 8),
-                vec3.scale([], vec3.add([], w[0].point, w[1].point), 1 / 8))
-        }
+        var avgcentre = vec3.create();
+        e.faces().forEach(function(f){
+            avgcentre = vec3.add_ip(avgcentre, f.centroid());
+        });
+        avgcentre = vec3.scale_ip(avgcentre, 1.0 / e.faces().length);
+        var midpoint = vec3.create();
+        e.vertices().forEach(function(v){
+            midpoint = vec3.add_ip(midpoint, v.point);
+        });
+        midpoint = vec3.scale_ip(midpoint, 1.0 / e.vertices().length);
+        e.subdiv_point = vec3.scale_ip(vec3.add([], avgcentre, midpoint), 0.5);
     });
-    // for each vertex, compute displaced point
+    // for each vertex, compute subdivided point
     mesh_subdiv.vertices.forEach(function(v){
-console.log('v', v);
-        if (v.is_boundary()) {
-            var w0 = v.halfedge.prev.from_vertex();
-            var w1 = v.halfedge.vertex;
-            v.subdiv_point = vec3.add([],
-                vec3.scale([], v.point, 3 / 4),
-                vec3.scale([], vec3.add([], w0.point, w1.point), 1 / 8));
-        } else {
-            var w = v.vertices();
-            var alpha = Math.pow(3 / 8 + 1 / 4 * Math.cos(2 * Math.PI / w.length), 2) + 3 / 8;
-            v.subdiv_point = vec3.scale([], v.point, alpha);
-            for (var i = 0; i < w.length; ++i)
-                v.subdiv_point = vec3.add([], v.subdiv_point, vec3.scale([], w[i].point, (1 - alpha) / w.length));
-        }
+        var n = v.faces().length;
+        var Q = vec3.create();
+        v.faces().forEach(function(f){
+            Q = vec3.add_ip(Q, f.centroid());
+        });
+        Q = vec3.scale_ip(Q, 1.0 / n);
+        var R = vec3.create();
+        v.edges().forEach(function(e){
+            e.vertices().forEach(function(v){
+                R = vec3.add_ip(R, v.point);
+            });
+        });
+        R = vec3.scale_ip(R, 0.5 / n);
+        var A = v.point;
+        v.subdiv_point = vec3.scaleAndAdd_ip(vec3.scaleAndAdd_ip(vec3.scale([], Q, 1.0 / n),
+                                                                 R, 2.0 / n),
+                                             A, (n - 3.0) / n);
     });
-    // make next subdiv mesh topology
+    // 注意: 面fから生成された新しい頂点のidは f.id
+    // 注意: 辺eから生成された新しい頂点のidは num_faces + e.id
+    // 注意: 頂点vから生成された新しい頂点のidは num_faces + num_edges + v.id
+    // 新しいメッシュの面を構成
     var mesh_subdiv_next = make_halfedge_mesh();
-    var offset = mesh_subdiv.num_vertices();
-    mesh_subdiv.faces.forEach(function(f){
-        f.halfedges().forEach(function(h){
-            var fv_indices = [h.from_vertex().id];
-            fv_indices.push(offset + h.edge.id);
-            fv_indices.push(offset + h.prev.edge.id);
-            mesh_subdiv_next.add_face(fv_indices);
-        });
+    var num_faces = mesh_subdiv.num_faces();
+    var num_edges = mesh_subdiv.num_edges();
+    mesh_subdiv.halfedges_forEach(function(h){
         var fv_indices = [];
-        f.edges().forEach(function(e){
-            fv_indices.push(offset + e.id);
-        });
+        fv_indices.push(h.face.id);
+        fv_indices.push(num_faces + h.edge.id);
+        fv_indices.push(num_faces + num_edges + h.vertex.id);
+        fv_indices.push(num_faces + h.next.edge.id);
         mesh_subdiv_next.add_face(fv_indices);
     });
-    // set geometry for the next subdiv mesh
-    mesh_subdiv.vertices.forEach(function(v){
-        mesh_subdiv_next.vertices[v.id].point = v.subdiv_point;
+    // 新しいメッシュに関するその他の設定
+    mesh_subdiv.faces.forEach(function(f){
+        mesh_subdiv_next.vertices[f.id].point = f.subdiv_point;
     });
     mesh_subdiv.edges_forEach(function(e){
-        mesh_subdiv_next.vertices[offset + e.id].point = e.subdiv_point;
+        mesh_subdiv_next.vertices[num_faces + e.id].point = e.subdiv_point; 
+    });
+    mesh_subdiv.vertices.forEach(function(v){
+        mesh_subdiv_next.vertices[num_faces + num_edges + v.id].point = v.subdiv_point;
     });
     mesh_subdiv = mesh_subdiv_next;
     mesh_subdiv.init_ids();
@@ -265,19 +261,7 @@ function init() {
     };
     // mesh
     function read_mesh(filename, content) {
-        var mesh_temp = meshio.read(filename, content);
-        var has_nontriangle = false;
-        for (var i = 0; i < mesh_temp.faces.length; ++i) {
-            if (mesh_temp.faces[i].halfedges().length != 3) {
-                has_nontriangle = true;
-                break;
-            }
-        }
-        if (has_nontriangle) {
-            alert("Non-triangle polygon found! Please triangulate the mesh first.");
-            return;
-        }
-        mesh_control = mesh_subdiv = mesh_temp;
+        mesh_control = mesh_subdiv = meshio.read(filename, content);
         mesh_subdiv.compute_normals();
         bbox = make_boundingbox();
         mesh_control.vertices.forEach(function(v) {
@@ -354,7 +338,7 @@ function init() {
 </script>
 </head>
 <body onload="init(); draw();">
-  <h2><a target="_blank" href="http://research.nii.ac.jp/~takayama/teaching/utokyo-iscg-2020/"><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></a></h2>
+  <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
   <table>
     <tr>
       <td>
