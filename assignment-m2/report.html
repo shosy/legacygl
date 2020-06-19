@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title id="title">内容説明・考察</title>
+  </head>
+  <body>
+    <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
+    <p>
+      Doo-Sabin法・Catmull-Clark法により、サブディビジョン曲面を生成した。
+    </p>
+    <p>
+      関数subdivide内で、新しい曲面上の頂点の座標を計算しメッシュの面を構成した。
+      そして多角形の面は三角形に分割して描画するようにした。
+    </p>
+    <p>
+      実際にDoo-Sabin法では様々な多角形のメッシュが作られたが、
+      Catmull-Clark法では四角形のメッシュの生成が確認できた。
+      またCatmull-Clark法のほうがDoo-Sabin法より丸っぽいサブディビジョン曲面を得られた。
+    </p>
+
+    <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
+    <script src="https://button.glitch.me/button.js"></script>
+  </body>
+</html>

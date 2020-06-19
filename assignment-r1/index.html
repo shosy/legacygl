@@ -1,0 +1,36 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title id="title">[utokyo-iscg-2020] Basic Assignment R1 (Ray Tracing)</title>
+  </head>
+  <body>
+    <h2><a target="_blank" href="http://research.nii.ac.jp/~takayama/teaching/utokyo-iscg-2020/"><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></a></h2>
+    <h3>URL:</h3>
+    <ul>
+      <li><a href="http://glslsandbox.com/e#65297.16">http://glslsandbox.com/e#65297.16</a></li>
+    </ul>
+    <h3>内容説明:</h3>
+    <p>レイトレーシングは次の3ステップからなる。</p>
+    <ol>
+      <li>関数generate_camera_ray</li>
+      ベクトルc_from, c_to, c_upやフィルムのサイズ・位置に関する情報から、各ピクセルに対する光線の原点や方向を導出した。
+      <li>関数intersect_hogehoge</li>
+      1.で求めた光線と各オブジェクトとの衝突点を求め、さらにその点における法線ベクトルを求めた。
+      ただし衝突点が複数ある場合には、光線の原点に最も近いものを選んだ。
+      今回の実装では、球・三角形・トーラスの3種類のオブジェクトを用意した。
+      衝突点の座標を求める際には、球の場合は2次方程式、三角形の場合は連立3元1次方程式、トーラスの場合は4次方程式の解法を用いた。
+      また球はマウスの位置に応じて移動するようにした。
+      <li>関数shade</li>
+      Basic shadingにおける放射照度の式に従って、shadingの処理を行った。
+    </ol>
+    <h3>考察:</h3>
+    <ul>
+      <li>球や三角形の描画は簡単にできたが、トーラスの描画には4次方程式の解の公式が必要でとても苦労した。</li>
+      <li>プログラムを走らせている間ずっとコンピュータのファンが回りっぱなしだったので、レイトレーシングの計算負荷が重いことを身にしみて感じた。</li>
+    </ul>
+
+    <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
+    <script src="https://button.glitch.me/button.js"></script>
+  </body>
+</html>
