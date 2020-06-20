@@ -57,7 +57,7 @@ function ring(p) {
     return f1 * f2 * f3 - c; 
 }
 
-function Cube(centre) {
+function Cube(centre, f) {
     const x = centre[0];
     const y = centre[1];
     const z = centre[2];
@@ -73,7 +73,20 @@ function Cube(centre) {
          [x + halfwidth_x, y - halfwidth_y, z + halfwidth_z],
          [x + halfwidth_x, y + halfwidth_y, z + halfwidth_z],
          [x - halfwidth_x, y + halfwidth_y, z + halfwidth_z]];
-    const mid = (i, j) => vec3.scale_ip(vec3.add([], this.vertices[i], this.vertices[j]), 0.5);
+    this.vertex_values = this.vertices.map(f);
+    const mid = (i, j) => {    // functionはだめ。アロー関数のスコープ。thisが変わっちゃう。
+        const v1 = this.vertices[i];
+        const v2 = this.vertices[j];
+        const value1 = this.vertex_values[i];
+        const value2 = this.vertex_values[j];
+        if ((value1 > 0.0 && value2 > 0.0) || (value1 < 0.0 && value2 < 0.0)) {
+            return undefined;    // 利用しないので計算する必要はない
+        } else if (value1 == value2) {
+            return vec3.scale_ip(vec3.add([], v1, v2), 0.5);
+        } else {
+            return vec3.scale_ip(vec3.sub([], vec3.scale([], v2, value1), vec3.scale([], v1, value2)), 1.0 / (value1 - value2));
+        }
+    };
     this.edge_midpoints = 
         [mid(0, 1), mid(1, 2), mid(2, 3), mid(3, 0),
          mid(4, 5), mid(5, 6), mid(6, 7), mid(7, 4),
@@ -359,13 +372,11 @@ function draw() {
                 const y = width[1] * (j + 0.5) + minpoint[1];
                 const z = width[2] * (k + 0.5) + minpoint[2];
                 const centre = [x, y, z];
-                const cube = new Cube(centre);
+                const f = sphere;
+                const cube = new Cube(centre, f);
                 var index = 0;
                 for (var l = 0; l < 8; l++) {
-                    // index = index | (((sphere(cube.vertices[l]) < 0) ? 1 : 0) << l);
-                    index = index | (((torus(cube.vertices[l]) < 0) ? 1 : 0) << l);
-                    // index = index | (((nazo(cube.vertices[l]) < 0) ? 1 : 0) << l);
-                    // index = index | (((ring(cube.vertices[l]) < 0) ? 1 : 0) << l);
+                    index |= (cube.vertex_values[l] < 0 ? 1 : 0) << l;
                 }
                 const triangleList = triangleTable[index];
                 for (var m = 0; ; m += 3) {
