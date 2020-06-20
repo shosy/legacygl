@@ -152,6 +152,7 @@ function draw() {
                     }
                 } else if (document.getElementById("input_marching_tetrahedra").checked) {    // Marching Tetrahedra の場合
                     // http://paulbourke.net/geometry/polygonise/ を参考にした
+                    // cubeを6つの四面体に分割
                     const generateTetrahedra = function(cube) {
                         return [new Tetrahedron(cube, 0, 2, 3, 7),
                                 new Tetrahedron(cube, 0, 2, 6, 7),
@@ -290,6 +291,7 @@ function init() {
     gl.clearColor(1, 1, 1, 1);
 };
 </script>
+<script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=MML_SVG"></script>
 </head>
 <body onload="init(); draw();">
   <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
@@ -314,8 +316,8 @@ function init() {
     <tr>
       <td>Resolution:</td>
       <td>
-        <input type="number" id="input_resolution_x" onchange="draw();" min="2" step="1" value="10">×
-        <input type="number" id="input_resolution_y" onchange="draw();" min="2" step="1" value="10">×
+        <input type="number" id="input_resolution_x" onchange="draw();" min="2" step="1" value="10"><math><mo>&times;</mo></math>
+        <input type="number" id="input_resolution_y" onchange="draw();" min="2" step="1" value="10"><math><mo>&times;</mo></math>
         <input type="number" id="input_resolution_z" onchange="draw();" min="2" step="1" value="10">
       </td>
     </tr>
@@ -334,5 +336,8 @@ function init() {
     <li>Shift+drag: Camera Zoom</li>
     <li>Ctrl+drag: Camera Pan</li>
   </ul>
+  
+  <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
+  <script src="https://button.glitch.me/button.js"></script>
 </body>
 </html>
