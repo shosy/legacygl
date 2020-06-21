@@ -49,6 +49,11 @@ function glass(p) {
     const z = p[2];
     return x * x + z * z - Math.log(y + 5.1) * Math.log(y + 5.1) - 0.02;
 }
+function metaball(p) {    // TODO
+    // return 1.2 / vec3.dist(p, [-2.5, 0.5, 2.5]) + 1.2 / vec3.dist(p, [2.5, -1.5, -2.5]) - 1.0;
+    return 1.2 / vec3.dist(p, [-1.5, 0.5, 1.5]) + 1.2 / vec3.dist(p, [1.5, -1.5, -1.5]) - 1.0;
+    // return 1.0 / vec3.dist(p, [-1.0, 0.5, 1.0]) - 1.5 / vec3.dist(p, [1.0, -0.5, -1.0]) - 0.2;
+}
 
 function vertices_midpoint(cell, i, j) {    // cellにおける頂点i,jの重み付き中点
     const v1 = cell.vertices[i];
@@ -120,7 +125,8 @@ function draw() {
                     document.getElementById("input_sphere").checked ? sphere :
                     document.getElementById("input_torus").checked ? torus : 
                     document.getElementById("input_cone").checked ? cone : 
-                    glass;
+                    document.getElementById("input_glass").checked ? glass : 
+                    metaball;
                 const cube = new Cube(centre, figure);
                 if (document.getElementById("input_marching_cubes").checked) {    // Marching Cubes の場合
                     // https://www.youtube.com/watch?v=B_xk71YopsA を参考にした
@@ -310,7 +316,8 @@ function init() {
         <input type="radio" name="input_figure" id="input_sphere" onchange="draw();" checked>sphere&ensp;
         <input type="radio" name="input_figure" id="input_torus" onchange="draw();">torus&ensp;
         <input type="radio" name="input_figure" id="input_cone" onchange="draw();">cone&ensp;
-        <input type="radio" name="input_figure" id="input_glass" onchange="draw();">glass
+        <input type="radio" name="input_figure" id="input_glass" onchange="draw();">glass<br>
+        <input type="radio" name="input_figure" id="input_metaball" onchange="draw();">metaball
       </td>
     </tr>
     <tr>
