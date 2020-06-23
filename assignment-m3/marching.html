@@ -43,7 +43,7 @@ function cone(p) {
     const z = p[2];
     return x * x + z * z - 0.25 * (y - 5.0) * (y - 5.0) - 0.02;
 }
-function glass(p) {
+function wineglass(p) {
     const x = p[0];
     const y = p[1];
     const z = p[2];
@@ -126,7 +126,7 @@ function draw() {
                     document.getElementById("input_sphere").checked ? sphere :
                     document.getElementById("input_torus").checked ? torus : 
                     document.getElementById("input_cone").checked ? cone : 
-                    document.getElementById("input_glass").checked ? glass :
+                    document.getElementById("input_wineglass").checked ? wineglass :
                     document.getElementById("input_far_metaballs").checked ? far_metaballs : 
                     close_metaballs;
                 const cube = new Cube(centre, figure);
@@ -318,7 +318,7 @@ function init() {
         <input type="radio" name="input_figure" id="input_sphere" onchange="draw();" checked>sphere&ensp;
         <input type="radio" name="input_figure" id="input_torus" onchange="draw();">torus&ensp;
         <input type="radio" name="input_figure" id="input_cone" onchange="draw();">cone&ensp;
-        <input type="radio" name="input_figure" id="input_glass" onchange="draw();">glass<br>
+        <input type="radio" name="input_figure" id="input_wineglass" onchange="draw();">wineglass<br>
         <input type="radio" name="input_figure" id="input_far_metaballs" onchange="draw();">far metaballs&ensp;
         <input type="radio" name="input_figure" id="input_close_metaballs" onchange="draw();">close metaballs
       </td>
