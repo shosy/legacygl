@@ -397,7 +397,7 @@ function draw() {
                     for (var m = 0; m < 8; m++) {
                         index |= (cube_values[m] < 0 ? 1 : 0) << m;
                     }
-                    const triangleIndexList = triangleTableForCube[index];    // 図形の境界と交わるような「直方体セルの辺」の番号のリスト。TODO:もっとわかりやすい注釈を
+                    const triangleIndexList = triangleTableForCube[index];    // 三角形メッシュの頂点がそれ上にある（図形の境界と交わる）ような「直方体セルの辺」の番号のリスト
                     // 関数値の線形補間から、生成するメッシュの頂点の座標を決定
                     const trianglePointList = new Array();    // 三角形メッシュの頂点の座標のリスト
                     for (var m = 0; ; m++) {
