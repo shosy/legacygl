@@ -3,18 +3,58 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title id="title">内容説明・考察</title>
+    <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=MML_SVG"></script>
   </head>
   <body>
     <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
-    <h3>全体として</h3>
-    <p>
-      TODO
-    </p>
     <h3><a href="marching.html">Marching Cubes, Marching Tetrahedra</a></h3>
+    <h4>内容説明</h4>
     <p>
-      TODO
+      陰関数で表現された図形の境界を、Marching CubesもしくはMarching Tetrahedraにより描画するプログラムを作成した。
     </p>
-
+    <p>
+      まず、この手順を示す。
+      <ol>
+        <li>空間を直方体のセルに分割する。Marching Tetrahedraの場合、さらに直方体を6つの四面体セルに分割する。</li>
+        <li>各セルに対して、
+          <ol type="i">
+            <li>セルの各頂点で関数値を求める。ただし「関数値が負 iff. 図形の内部」とする。</li>
+            <li>i. の正負のパターンから、生成するメッシュ（多角形なら三角形に分割）の大まかな形を決定する。<br>
+                Marching Cubesの場合、正負パターンは2^8=256通りもあるので、
+                <a href="https://gist.github.com/ttammear/a3cdc214023f8c92b1f0bf27e7cc08d1">こちら</a>にあるルックアップテーブルを利用した。</li>
+            <li>関数値の線形補間から、生成するメッシュの頂点の座標を計算する。</li>
+            <li>メッシュを描画する。</li>
+          </ol>
+          を繰り返す。
+        </li>
+      </ol>
+    </p>
+    <p>
+      今回のデモでは図形として、球体・トーラス・円錐・ワイングラスを用意した。
+    </p>
+    <p>
+      また「Constructive Solid Geometry (Boolean演算)」の考え方により、図形の和集合・共通部分・差集合も描画できるようにした。<br>
+      これは、
+      <math><mo>A &cup; B</mo></math>の関数値を<math><mo>A, B</mo></math>の関数値のうち小さいほう、
+      <math><mo>A &cap; B</mo></math>の関数値を<math><mo>A, B</mo></math>の関数値のうち大きいほう、
+      <math><mo>A &setminus; B</mo></math>の関数値を<math><mo>A, -B</mo></math>の関数値のうち大きいほうと解釈することで、実現した。
+    </p>
+    <p>
+      さらに、メタボールによる形状モデリングも実験した。<br>
+      2つのメタボールが遠くにある場合はただ離れた2つの球体しか描画されないが、
+      近くに移動させると2つの球体がなめらかな曲面で繋がることが確認できた。
+    </p>
+    <p>
+      ソースコード内のコンストラクタFigureを活用することで、
+      陰関数表示された図形やそれらの和集合・共通部分・差集合を簡単に設定できるようにしたので、参照してほしい。
+    </p>
+    <h4>考察</h4>
+    <p>
+      セルをある程度細かくすれば、計算時間はかかるものの、図形をきれいに描画できた。<br>
+      しかし円錐は頂点のようななめらかでない点が正しい位置からずれて描かれてしまい、
+      Marching Cubes, Marching Tetrahedraによる描画には向いていないことが分かった。
+    </p>
+    
     <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
     <script src="https://button.glitch.me/button.js"></script>
   </body>
