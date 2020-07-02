@@ -197,6 +197,18 @@ function init() {
     <li>Detail Scaling: <input type="number" id="input_num_detail_scaling" step="0.1" min="0" value="2"></li>
     <li><button id="btn_enhance_detail">Enhance Detail</button></li>
   </ul>
+  <h3>内容説明・考察</h3>
+  <p>
+    画像に対してgaussian filterまたはbilateral filterをかけるプログラムを実装した。
+  </p>
+  <p>
+    gaussian filterでは、smoothedの画像が全体的にぼやけ、enhancedの画像に光ぼけhalosが見られて人工的に編集された印象を受けた。<br>
+    一方bilateral filterでは、smoothedの画像で異なる色が混ざりにくくなり、enhancedの画像がより自然な形で鮮明になった。
+  </p>
+  <p>
+    またbilateral filterの方が実行に時間がかかった。<br>
+    並列性の高い処理なので、GPUを用いると有効であると思われる。
+  </p>
   
   <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
   <script src="https://button.glitch.me/button.js"></script>
