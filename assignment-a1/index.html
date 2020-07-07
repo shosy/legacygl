@@ -38,6 +38,18 @@ function update_position() {
 
 function compute_ik(target_position) {
   // TODO
+  // 以下を繰り返すべき??
+  for (var index = linkages.length - 1; index >= 0; index--) {
+    var basis_position = index > 0 ? linkages[index - 1].position : [0, 0];
+    var effector_position = linkages[linkages.length - 1].position;
+    var basis2effector = vec2.normalize_ip(vec2.sub([], effector_position, basis_position));
+    var basis2target = vec2.normalize_ip(vec2.sub([], target_position, basis_position));
+    linkages[index].angle += Math.asin(vec2.cross([], basis2effector, basis2target)[2]) * 180 / Math.PI;
+    // angleを-180から180に制限する必要ある??
+    // if (linkages[index].angle <= -180) linkages[index].angle += 360;
+    // if (linkages[index].angle > 180) linkages[index].angle -= 360;
+    update_position();
+  }
 };
 
 function draw() {
