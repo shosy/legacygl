@@ -36,19 +36,27 @@ function update_position() {
   });
 };
 
-function compute_ik(target_position) {
-  // TODO
-  // 以下を繰り返すべき??
-  for (var index = linkages.length - 1; index >= 0; index--) {
-    var basis_position = index > 0 ? linkages[index - 1].position : [0, 0];
-    var effector_position = linkages[linkages.length - 1].position;
-    var basis2effector = vec2.normalize_ip(vec2.sub([], effector_position, basis_position));
-    var basis2target = vec2.normalize_ip(vec2.sub([], target_position, basis_position));
-    linkages[index].angle += Math.asin(vec2.cross([], basis2effector, basis2target)[2]) * 180 / Math.PI;
-    // angleを-180から180に制限する必要ある??
-    // if (linkages[index].angle <= -180) linkages[index].angle += 360;
-    // if (linkages[index].angle > 180) linkages[index].angle -= 360;
-    update_position();
+function compute_ik(target_position) {  // TODO
+  while (true) {
+    var old_linkages = JSON.parse(JSON.stringify(linkages));  // deepcopy
+    // 各関節の角度を更新
+    for (var index = linkages.length - 1; index >= 0; index--) {
+      var basis_position = index > 0 ? linkages[index - 1].position : [0, 0];
+      var effector_position = linkages[linkages.length - 1].position;
+      var basis2effector = vec2.normalize_ip(vec2.sub([], effector_position, basis_position));
+      var basis2target = vec2.normalize_ip(vec2.sub([], target_position, basis_position));
+      linkages[index].angle += Math.asin(Math.min(Math.max(-1, vec2.cross([], basis2effector, basis2target)[2]), 1)) * 180 / Math.PI;
+      // angleを-180から180に制限する必要ある??
+      // if (linkages[index].angle <= -180) linkages[index].angle += 360;
+      // if (linkages[index].angle > 180) linkages[index].angle -= 360;
+      update_position();
+    }
+    // 関節の角度の平均変化量が1度未満だったら、処理を終了
+    var diff = 0.0;
+    for (var i = 0; i < linkages.length; i++) {
+      diff += Math.abs(linkages[i].angle - old_linkages[i].angle);
+    }
+    if (diff < linkages.length)  break;
   }
 };
 
