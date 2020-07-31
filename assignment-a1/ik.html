@@ -46,9 +46,6 @@ function compute_ik(target_position) {  // TODO
       var basis2effector = vec2.normalize_ip(vec2.sub([], effector_position, basis_position));
       var basis2target = vec2.normalize_ip(vec2.sub([], target_position, basis_position));
       linkages[index].angle += Math.asin(Math.min(Math.max(-1, vec2.cross([], basis2effector, basis2target)[2]), 1)) * 180 / Math.PI;
-      // angleを-180から180に制限する必要ある??
-      // if (linkages[index].angle <= -180) linkages[index].angle += 360;
-      // if (linkages[index].angle > 180) linkages[index].angle -= 360;
       update_position();
     }
     // 関節角の平均変化量が1度未満だったら、処理を終了
