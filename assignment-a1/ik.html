@@ -46,6 +46,10 @@ function compute_ik(target_position) {  // TODO
       var basis2effector = vec2.normalize_ip(vec2.sub([], effector_position, basis_position));
       var basis2target = vec2.normalize_ip(vec2.sub([], target_position, basis_position));
       linkages[index].angle += Math.asin(Math.min(Math.max(-1, vec2.cross([], basis2effector, basis2target)[2]), 1)) * 180 / Math.PI;
+      if (document.getElementById("flag" + String(index)).checked) {
+        var maxangle = Number(document.getElementById("constraint" + String(index)).value);
+        linkages[index].angle = Math.min(Math.max(-maxangle, linkages[index].angle), maxangle);
+      }
       update_position();
     }
     // 関節角の平均変化量が1度未満だったら、処理を終了
@@ -206,6 +210,13 @@ function init() {
           <li>Selected Linkage: <input type="number" id="input_selected" step="1" min="0" value="0"></li>
           <li>Selected Linkage's Angle: <input type="number" id="input_angle" step="5" value="0"></li>
           <li><input type="checkbox" id="input_ikmode"> IK Mode</li>
+          <li>Constraint of Linkage's Angle</li>
+          <ul>
+              <li>Linkage0: <input type="number" id="constraint0" min="0" step="5" value="90"> <input type="checkbox" id="flag0">Valid</li>
+              <li>Linkage1: <input type="number" id="constraint1" min="0" step="5" value="90"> <input type="checkbox" id="flag1">Valid</li>
+              <li>Linkage2: <input type="number" id="constraint2" min="0" step="5" value="90"> <input type="checkbox" id="flag2">Valid</li>
+              <li>Linkage3: <input type="number" id="constraint3" min="0" step="5" value="90"> <input type="checkbox" id="flag3">Valid</li>
+          </ul>
           <li>Usage:</li>
           <ul>
               <li>Drag: Perform IK</li>

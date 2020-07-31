@@ -7,17 +7,22 @@
   <body>
     <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
     <h3><a href="ik.html">Inverse Kinematics</a></h3>
+    <h4>内容説明</h4>
     <p>
       <a target="_blank" href="https://mukai-lab.org/content/CcdParticleInverseKinematics.pdf">Cyclic-Coordinate-Descent法</a>により、Inverse Kinematicsを実装した。
     </p>
     <p>
-      末端関節から順に、ターゲットを向くように関節を回転。
-      関節角の平均変化量が1度未満になるまで、この計算を繰り返した。
+      すなわち、末端関節から順にターゲットを向くように関節を回転させ、
+      関節角の平均変化量が1度未満になるまでこの計算を繰り返した。
     </p>
     <p>
-      考察hogehoge
+      また各関節角の可動域を設定できるモードを追加した。
     </p>
-    
+    <h4>考察</h4>
+    <p>
+      自分の動作環境では、計算の反復回数が多くならず、リアルタイムに人の体の動きを再現できた。
+    </p>
+
     <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
     <script src="https://button.glitch.me/button.js"></script>
   </body>
