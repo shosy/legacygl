@@ -1,0 +1,548 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title id="title">Texture Synthesis</title>
+<script src="https://bbcdn.githack.com/kenshi84/legacygl.js/raw/master/util.js"></script>
+<style>
+img    { border: 1px solid #000000; background-color: blue }
+canvas { border: 1px solid #000000; background-color: blue }
+</style>
+<script type="text/javascript">
+"use strict";
+
+function downsample(imgdata_high, imgdata_low) {
+    for (var low_y = 0; low_y < imgdata_low.height; ++low_y)
+    for (var low_x = 0; low_x < imgdata_low.width ; ++low_x)
+    {
+        var low_idx = low_x + imgdata_low.width * low_y;
+        var high_x0 = 2 * low_x;
+        var high_y0 = 2 * low_y;
+        var high_x1 = Math.min(high_x0 + 1, imgdata_high.width  - 1);
+        var high_y1 = Math.min(high_y0 + 1, imgdata_high.height - 1);
+        var high_idx00 = high_x0 + imgdata_high.width * high_y0;
+        var high_idx10 = high_x1 + imgdata_high.width * high_y0;
+        var high_idx01 = high_x0 + imgdata_high.width * high_y1;
+        var high_idx11 = high_x1 + imgdata_high.width * high_y1;
+        for (var c = 0; c < 4; ++c) {
+            var val = 0;
+            val += 0.25 * imgdata_high.data[4 * high_idx00 + c];
+            val += 0.25 * imgdata_high.data[4 * high_idx10 + c];
+            val += 0.25 * imgdata_high.data[4 * high_idx01 + c];
+            val += 0.25 * imgdata_high.data[4 * high_idx11 + c];
+            imgdata_low.data[4 * low_idx + c] = val;
+        }
+    }
+};
+
+function upsample(imgdata_low, imgdata_high) {
+    for (var high_y = 0; high_y < imgdata_high.height; ++high_y)
+    for (var high_x = 0; high_x < imgdata_high.width ; ++high_x)
+    {
+        var high_idx = high_x + imgdata_high.width * high_y;
+        var low_x = Math.floor(high_x / 2);
+        var low_y = Math.floor(high_y / 2);
+        var low_idx = low_x + imgdata_low.width * low_y;
+        for (var c = 0; c < 4; ++c)
+            imgdata_high.data[4 * high_idx + c] = imgdata_low.data[4 * low_idx + c];
+    }
+};
+
+window.onload = function() {
+    // 3 pyramid levels (fixed length)
+    var l0 = {};
+    var l1 = {};
+    var l2 = {};
+    var levels = [l0, l1, l2];
+    // register HTML elements
+    for (var i = 0; i < 3; ++i) {
+        levels[i].img_original = document.getElementById("img_original_" + i);
+        levels[i].img_nnf      = document.getElementById("img_nnf_"      + i);  // Nearest Neighbor Field
+        levels[i].img_result   = document.getElementById("img_result_"   + i);
+        if (i > 0)
+            levels[i].img_mask = document.getElementById("img_mask_" + i);
+    }
+    var current_level;
+
+    // canvas for painting mask at the finest level
+    var canvas_mask = document.getElementById("canvas_mask");
+    var context_mask = canvas_mask.getContext("2d");
+
+    // hidden canvas for reading/writing images
+    var canvas_hidden = document.createElement("canvas");
+    var context_hidden = canvas_hidden.getContext("2d");
+    function read_img(img) {
+        canvas_hidden.width  = img.width;
+        canvas_hidden.height = img.height;
+        context_hidden.drawImage(img, 0, 0);
+        return context_hidden.getImageData(0, 0, img.width, img.height);
+    };
+    function write_img(img, imgdata) {
+        canvas_hidden.width  = imgdata.width;
+        canvas_hidden.height = imgdata.height;
+        context_hidden.putImageData(imgdata, 0, 0);
+        img.src = canvas_hidden.toDataURL();
+    };
+    
+    // neighborhood size: (2*N + 1)^2 pixels per patch
+    var N = Number(document.getElementById("input_num_neighbor_size").value);
+    document.getElementById("input_num_neighbor_size").onchange = function() { N = Number(this.value); };
+    
+    l0.img_original.onload = function() {
+        for (var i = 0; i < 3; ++i) {
+            var li = levels[i];
+            // set image dimensions
+            li.width  = i == 0 ? this.width  : Math.floor((levels[i - 1].width  + 1) / 2);
+            li.height = i == 0 ? this.height : Math.floor((levels[i - 1].height + 1) / 2);
+            li.img_nnf.width  = li.img_result.width  = li.width;
+            li.img_nnf.height = li.img_result.height = li.height;
+            if (i == 0) {
+                canvas_mask.width  = l0.width;
+                canvas_mask.height = l0.height;
+            } else {
+                li.img_original.width  = li.img_mask.width  = li.width;
+                li.img_original.height = li.img_mask.height = li.height;
+            }
+            // init original by loading from img_original or by downsampling
+            if (i == 0) {
+                l0.original = read_img(this);
+            } else {
+                li.original = context_hidden.createImageData(li.width, li.height);
+                downsample(levels[i - 1].original, li.original);
+                write_img(li.img_original, li.original);
+            }
+            // init mask as original
+            if (i == 0)
+                context_mask.drawImage(this, 0, 0);
+            else
+                write_img(li.img_mask, li.original);
+            // init nnf as blank image, allocate space for its internal data
+            li.nnf = context_hidden.createImageData(li.width, li.height);
+            write_img(li.img_nnf, li.nnf);
+            li.nnf.x = new Int16Array  (li.width * li.height);
+            li.nnf.y = new Int16Array  (li.width * li.height);
+            li.nnf.d = new Float64Array(li.width * li.height);        // distance in the similarity match
+            // init result as original
+            write_img(li.img_result, li.original);
+        }
+    };
+    document.getElementById("input_file_original").onchange = function(evt) {
+        if (evt.target.files.length == 0) return;
+        var reader = new FileReader();
+        reader.readAsDataURL(evt.target.files[0]);
+        reader.onload = function(){
+            l0.img_original.src = this.result;
+        };
+    };
+
+    document.getElementById("btn_reset").onclick = function() {
+        l0.img_original.onload();
+    };
+    
+    // simple drawing ui for canvas_mask
+    var mousedown = false;
+    canvas_mask.onmousedown = function(evt) {
+        mousedown = true;
+    };
+    canvas_mask.onmousemove = function(evt) {
+        if (!mousedown) return;
+        // draw scribble
+        var mousepos = this.get_mousepos(evt, false);
+        context_mask.strokeStyle = "rgb(0, 0, 255)";
+        // context_mask.lineJoin = "round";    // anti-aliasing seems to disturb the mask region
+        // context_mask.imageSmoothingEnabled = false;
+        context_mask.lineWidth = Number(document.getElementById("input_num_scribble_radius").value);
+        context_mask.beginPath();
+        context_mask.moveTo(mousepos[0] - 1, mousepos[1] - 1);
+        context_mask.lineTo(mousepos[0] + 1, mousepos[1] - 1);
+        context_mask.lineTo(mousepos[0] + 1, mousepos[1] + 1);
+        context_mask.lineTo(mousepos[0] - 1, mousepos[1] + 1);
+        context_mask.closePath();
+        context_mask.stroke();
+        // mask out painted region
+        l0.mask = context_mask.getImageData(0, 0, l0.width, l0.height);
+        for (var y = 0; y < l0.height; ++y)
+        for (var x = 0; x < l0.width ; ++x)
+        {
+            var idx = x + l0.width * y;
+            var r = l0.mask.data[4 * idx];
+            var g = l0.mask.data[4 * idx + 1];
+            var b = l0.mask.data[4 * idx + 2];
+            var a = l0.mask.data[4 * idx + 3];
+            // mask out pixel if its color matches predefined brush color
+            // (assuming its nonexistence in original!)
+            l0.mask.data[4 * idx + 3] = (a == 0 || (r == 0 && g == 0 && b == 255)) ? 0 : 255;
+            // set rgb as the same in the original
+            for (var c = 0; c < 3; ++c)
+                l0.mask.data[4 * idx + c] = l0.original.data[4 * idx + c];
+        }
+        // downsample masks
+        for (var i = 1; i < 3; ++i) {
+            var li = levels[i];
+            li.mask = context_hidden.createImageData(li.width, li.height);
+            downsample(levels[i - 1].mask, li.mask);
+        }
+        // make mask binary
+        for (var i = 1; i < 3; ++i) {
+            var li = levels[i];
+            for (var j = 0; j < li.width * li.height; ++j)
+                li.mask.data[4 * j + 3] = li.mask.data[4 * j + 3] < 128 ? 0 : 255;
+        }
+        dilate_mask();
+        init_result();
+        evt.preventDefault();
+    };
+    canvas_mask.onmouseup = function(evt) {
+        mousedown = false;
+    };
+    
+    function dilate_mask() {
+        // each pixel's alpha value means:
+        //      0   ==> synthesis region
+        //      255 ==> completely outside synthesis region (ie. patch doesn't touch synthesis region)
+        //      128 ==> boundary between synthesis and original
+        for (var i = 0; i < 3; ++i) {
+            var li = levels[i];
+            for (var y = 0; y < li.height; ++y)
+            for (var x = 0; x < li.width ; ++x)
+            {
+                var idx = x + li.width * y;
+                if (li.mask.data[4 * idx + 3] != 0) continue;
+                for (var dy = -N; dy <= N; ++dy)
+                for (var dx = -N; dx <= N; ++dx)
+                {
+                    var x2 = x + dx;
+                    var y2 = y + dy;
+                    if (x2 < 0 || li.width <= x2 || y2 < 0 || li.height <= y2) continue;
+                    var idx2 = x2 + li.width * y2;
+                    if (li.mask.data[4 * idx2 + 3] != 0)
+                        li.mask.data[4 * idx2 + 3] = 128;
+                }
+            }
+            if (i == 0)
+                context_mask.putImageData(l0.mask, 0, 0);
+            else
+                write_img(li.img_mask, li.mask);
+        }
+    };
+    function init_result() {
+        for (var i = 0; i < 3; ++i) {
+            var li = levels[i];
+            li.result = read_img(li.img_original);
+            for (var y = 0; y < li.height; ++y)
+            for (var x = 0; x < li.width ; ++x)
+            {
+                var idx = x + li.width * y;
+                if (li.mask.data[4 * idx + 3] != 0) continue;
+                if (i == 2) {
+                    // assign random pixel color in unmasked region
+                    while (true) {
+                        var x2 = Math.floor(Math.random() * l2.width );
+                        var y2 = Math.floor(Math.random() * l2.height);
+                        var idx2 = x2 + l2.width * y2;
+                        if (l2.mask.data[4 * idx2 + 3] == 0) continue;
+                        for (var c = 0; c < 3; ++c)
+                            l2.result.data[4 * idx + c] = l2.original.data[4 * idx2 + c];
+                        break;
+                    }
+                } else {
+                    // init as the brush color
+                    li.result.data[4 * idx    ] = 0;
+                    li.result.data[4 * idx + 1] = 0;
+                    li.result.data[4 * idx + 2] = 255;
+                }
+            }
+            write_img(li.img_result, li.result);
+        }
+        current_level = 2;
+        document.getElementById("span_current_level").innerText = current_level;
+    };
+    
+    function dist(li, data1, x1, y1, data2, x2, y2, cutoff) {
+        var d = 0;
+        for (var dy = -N; dy <= N; ++dy)
+        for (var dx = -N; dx <= N; ++dx)
+        {
+            var idx1 = x1 + dx + li.width * (y1 + dy);
+            var idx2 = x2 + dx + li.width * (y2 + dy);
+            for (var c = 0; c < 3; ++c) {
+                var dd = data1[4 * idx1 + c] - data2[4 * idx2 + c];
+                d += dd * dd;
+                if (d > cutoff) return cutoff;
+            }
+        }
+        return d;
+    };
+    
+    function improve_nnf(li, x, y, candidate_x, candidate_y) {
+        var idx = x + li.width * y;
+        var d = dist(li, li.result.data, x, y, li.original.data, candidate_x, candidate_y, li.nnf.d[idx]);
+        if (d < li.nnf.d[idx]) {
+            li.nnf.d[idx] = d;
+            li.nnf.x[idx] = candidate_x;
+            li.nnf.y[idx] = candidate_y;
+            return true;
+        }
+        return false;
+    };
+    
+    function search_naive(li) {
+        for (var y = 0; y < li.height; ++y)
+        for (var x = 0; x < li.width ; ++x)
+        {
+            var idx = x + li.width * y;
+            if (li.mask.data[4 * idx + 3] == 255)
+                // skip idx whose patch doesn't touch the mask
+                continue;
+            li.nnf.d[idx] = Number.MAX_VALUE;
+            for (var y2 = N; y2 < li.height - N; ++y2)
+            for (var x2 = N; x2 < li.width  - N; ++x2)
+            {
+                var idx2 = x2 + li.width * y2;
+                if (li.mask.data[4 * idx2 + 3] != 255)
+                    // skip idx2 whose patch touches the mask
+                    continue;
+                improve_nnf(li, x, y, x2, y2);
+            }
+        }
+        visualize_nnf(li);
+    };
+    
+    function search_patchmatch(li) {
+        patchmatch_init(li);
+        patchmatch_iterate(li);
+    };
+    
+    function patchmatch_init(li) {
+        // randomize nnf
+        for (var y = 0; y < li.height; ++y)
+        for (var x = 0; x < li.width ; ++x)
+        {
+            var idx = x + li.width * y;
+            if (li.mask.data[4 * idx + 3] == 255)
+                // skip idx whose patch doesn't touch the mask
+                continue;
+            while (true) {
+                var x2 = Math.floor(Math.random() * (li.width  - 2 * N)) + N;
+                var y2 = Math.floor(Math.random() * (li.height - 2 * N)) + N;
+                var idx2 = x2 + li.width * y2;
+                if (li.mask.data[4 * idx2 + 3] != 255)
+                    // don't use neighborhood within or near synthesis region
+                    continue;
+                li.nnf.x[idx] = x2;
+                li.nnf.y[idx] = y2;
+                li.nnf.d[idx] = dist(li, li.result.data, x, y, li.original.data, x2, y2, Number.MAX_VALUE);
+                break;
+            }
+        }
+        visualize_nnf(li);
+    };
+    document.getElementById("btn_patchmatch_init").onclick = function() {
+        patchmatch_init(levels[current_level]);
+    };
+    
+    var odd_iter = false;
+    function patchmatch_iterate(li) {
+        var numiter = Number(document.getElementById("input_num_numiter").value);
+        for (var iter = 0; iter < numiter; ++iter) {
+            var xstart = N, xend = li.width  - N, xchange = 1;
+            var ystart = N, yend = li.height - N, ychange = 1;
+            if (odd_iter) {
+                xstart = li.width  - N - 1; xend = -1; xchange = -1;
+                ystart = li.height - N - 1; yend = -1; ychange = -1;
+            }
+            odd_iter = !odd_iter;
+            for (var x = xstart; x != xend; x += xchange)
+            for (var y = ystart; y != yend; y += ychange)
+            {
+                var idx = x + li.width * y;
+                if (li.mask.data[4 * idx + 3] == 255)
+                    continue;
+                // Propagation: Improve current guess by trying instead correspondences from left and above (below and right on odd iterations).
+                var x2 = x - xchange;
+                if (N <= x2 && x2 < li.width - N) {
+                    var idx2 = x2 + li.width * y;
+                    if (li.mask.data[4 * idx2 + 3] != 255) {
+                        var x3 = li.nnf.x[idx2] + xchange;
+                        var y3 = li.nnf.y[idx2];
+                        if (N <= x3 && x3 < li.width - N) {
+                            var idx3 = x3 + li.width * y3;
+                            if (li.mask.data[4 * idx3 + 3] == 255)
+                                improve_nnf(li, x, y, x3, y3);
+                        }
+                    }
+                }
+                var y2 = y - ychange;
+                if (N <= y2 && y2 < li.height - N) {
+                    var idx2 = x + li.width * y2;
+                    if (li.mask.data[4 * idx2 + 3] != 255) {
+                        var x3 = li.nnf.x[idx2];
+                        var y3 = li.nnf.y[idx2] + ychange;
+                        if (N <= y3 && y3 < li.height - N) {
+                            var idx3 = x3 + li.width * y3;
+                            if (li.mask.data[4 * idx3 + 3] == 255)
+                                improve_nnf(li, x, y, x3, y3);
+                        }
+                    }
+                }
+                // Random search: Improve current guess by searching in boxes of exponentially decreasing size around the current best guess.
+                for (var mag = Math.max(li.width, li.height); mag >= 1; mag = Math.floor(mag / 2)) {
+                    var nnfx = li.nnf.x[idx];
+                    var nnfy = li.nnf.y[idx];
+                    var xmin = Math.max(nnfx - mag, N), xmax = Math.min(nnfx + mag + 1, li.width  - N);
+                    var ymin = Math.max(nnfy - mag, N), ymax = Math.min(nnfy + mag + 1, li.height - N);
+                    var x2 = xmin + Math.floor(Math.random() * (xmax - xmin));
+                    var y2 = ymin + Math.floor(Math.random() * (ymax - ymin));
+                    var idx2 = x2 + li.width * y2;
+                    if (li.mask.data[4 * idx2 + 3] == 255)
+                        improve_nnf(li, x, y, x2, y2);
+                }
+            }
+        }
+        visualize_nnf(li);
+    };
+    document.getElementById("btn_patchmatch_iterate").onclick = function() {
+        patchmatch_iterate(levels[current_level]);
+    };
+    
+    function visualize_nnf(li) {
+        for (var y = 0; y < li.height; ++y)
+        for (var x = 0; x < li.width ; ++x)
+        {
+            var idx = x + li.width * y;
+            li.nnf.data[4 * idx + 3] = 255;
+            if (li.mask.data[4 * idx + 3] != 0) continue;
+            li.nnf.data[4 * idx]     = 128 + Math.floor((li.nnf.x[idx] - x) * 128 / li.width );
+            li.nnf.data[4 * idx + 1] = 128 + Math.floor((li.nnf.y[idx] - y) * 128 / li.height);
+            li.nnf.data[4 * idx + 2] = 0;
+        }
+        write_img(li.img_nnf, li.nnf);
+    };
+
+    function search() {
+        var li = levels[current_level];
+        if (document.getElementsByName("input_rad_search_method")[0].checked)
+            search_naive(li);
+        else
+            search_patchmatch(li);
+    };
+    document.getElementById("btn_search").onclick = search;
+    
+    function blend() {
+        var li = levels[current_level];
+        for (var y = 0; y < li.height; ++y)
+        for (var x = 0; x < li.width ; ++x)
+        {
+            var idx = x + li.width * y;
+            if (li.mask.data[4 * idx + 3] != 0)
+                // skip pixel outside mask
+                continue;
+            // vote
+            var accum_rgbw = [0, 0, 0, 0];          // accumulated rgb+weight
+            for (var dy = -N; dy <= N; ++dy)
+            for (var dx = -N; dx <= N; ++dx)
+            {
+                var x2 = x + dx;
+                var y2 = y + dy;
+                var idx2 = x2 + li.width * y2;
+                var x3 = li.nnf.x[idx2] - dx;
+                var y3 = li.nnf.y[idx2] - dy;
+                var w = Math.pow(li.nnf.d[idx2] + 0.00000001, -0.6);
+                var idx3 = x3 + li.width * y3;
+                accum_rgbw[0] += w * li.original.data[4 * idx3    ];
+                accum_rgbw[1] += w * li.original.data[4 * idx3 + 1];
+                accum_rgbw[2] += w * li.original.data[4 * idx3 + 2];
+                accum_rgbw[3] += w;
+            }
+            // take average
+            for (var c = 0; c < 3; ++c)
+                li.result.data[4 * idx + c] = accum_rgbw[c] / accum_rgbw[3];
+        }
+        write_img(li.img_result, li.result);
+    };
+    document.getElementById("btn_blend").onclick = blend;
+    
+    document.getElementById("btn_search_blend").onclick = function() {
+        search();
+        blend();
+    };
+    
+    document.getElementById("btn_next_level").onclick = function() {
+        if (current_level == 0) {
+            alert("Already at the finest level!");
+            return;
+        }
+        --current_level;
+        document.getElementById("span_current_level").innerText = current_level;
+        var li = levels[current_level];
+        upsample(levels[current_level + 1].result, li.result);
+        for (var i = 0; i < li.width * li.height; ++i) {
+            if (li.mask.data[4 * i + 3] != 0) {
+                for (var c = 0; c < 3; ++c)
+                    li.result.data[4 * i + c] = li.original.data[4 * i + c];
+            }
+        }
+        write_img(li.img_result, li.result);
+    };
+    
+    l0.img_original.src = "https://cdn.glitch.com/ba3c9db6-7c58-4c0e-b8e7-1acafaa94f13%2Fgarden_mid.png?v=1562730115036";
+};
+</script>
+
+</head>
+<body>
+  <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
+    <table border="1">
+    <tr>
+        <td>Level</td>
+        <td>Original</td>
+        <td>Mask</td>
+        <td>Nesarest Neighbor Field</td>
+        <td>Result</td>
+        <td rowspan="4"><ul>
+            <li>Load Original: <input type="file" id="input_file_original" accept="image/*"></li>
+            <li><button id="btn_reset">Reest</button></li>
+            <li>Scribble Radius: <input type="number" id="input_num_scribble_radius" min="1" value="20"></li>
+            <li>Neighborhood Size: <input type="number" id="input_num_neighbor_size" min="1" value="5"></li>
+            <li>Current Level: <span id="span_current_level"></span></li>
+            <li><button id="btn_search">Search</button></li>
+            <ul>
+                <li><input type="radio" name="input_rad_search_method">         Naive</li>
+                <li><input type="radio" name="input_rad_search_method" checked> PatchMatch (Number of Iterations: <input type="number" id="input_num_numiter" step="1" min="1" value="20">)</li>
+                <ul>
+                    <li><button id="btn_patchmatch_init">Init</button></li>
+                    <li><button id="btn_patchmatch_iterate">Iterate</button></li>
+                </ul>
+            </ul>
+            <li><button id="btn_blend">Blend</button></li>
+            <li><button id="btn_search_blend">Search + Blend</button></li>
+            <li><button id="btn_next_level">Next Level</button></li>
+        </ul></td>
+    </tr>
+    <tr>
+        <td>0</td>
+        <td><img id="img_original_0" crossorigin="anonymous"></td>
+        <td><canvas id="canvas_mask"></canvas></td>
+        <td><img id="img_nnf_0"     ></td>
+        <td><img id="img_result_0"  ></td>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td><img id="img_original_1"></td>
+        <td><img id="img_mask_1"    ></td>
+        <td><img id="img_nnf_1"     ></td>
+        <td><img id="img_result_1"  ></td>
+    </tr>
+    <tr>
+        <td>2</td>
+        <td><img id="img_original_2"></td>
+        <td><img id="img_mask_2"    ></td>
+        <td><img id="img_nnf_2"     ></td>
+        <td><img id="img_result_2"  ></td>
+    </tr>
+    </table>
+  
+  <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
+  <script src="https://button.glitch.me/button.js"></script>
+</body>
+</html>

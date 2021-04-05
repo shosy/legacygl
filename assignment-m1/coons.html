@@ -273,8 +273,6 @@ function init() {
     // init OpenGL settings
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.enable(gl.DEPTH_TEST);
-    gl.enable(gl.POLYGON_OFFSET_FILL);
-    gl.polygonOffset(1, 1);
     gl.clearColor(1, 1, 1, 1);
 };
 </script>
@@ -305,5 +303,8 @@ function init() {
     <li>Alt+Shift+drag: Camera Zoom</li>
     <li>Alt+Ctrl+drag: Camera Pan</li>
   </ul>
+  
+  <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
+  <script src="https://button.glitch.me/button.js"></script>
 </body>
 </html>

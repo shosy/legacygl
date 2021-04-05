@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title id="title">内容説明・考察</title>
+  </head>
+  <body>
+    <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
+    <h3><a href="filter.html">Gaussian Filter, Bilateral Filter</a></h3>
+    <p>
+      画像に対してgaussian filterまたはbilateral filterをかけるプログラムを実装した。
+    </p>
+    <p>
+      gaussian filterでは、smoothedの画像が全体的にぼやけ、enhancedの画像に光ぼけhalosが見られて人工的に編集された印象を受けた。<br>
+      一方bilateral filterでは、smoothedの画像で異なる色が混ざりにくくなり、enhancedの画像がより自然な形で鮮明になった。
+    </p>
+    <p>
+      またbilateral filterの方が実行に時間がかかった。<br>
+      並列性の高い処理なので、GPUを用いると有効であると思われる。
+    </p>
+    
+    <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
+    <script src="https://button.glitch.me/button.js"></script>
+  </body>
+</html>
